@@ -85,6 +85,40 @@ def build_potential(x: np.ndarray, V0: float, centre: float, width: float) -> np
     return V
 
 
+def add_absorber(x: np.ndarray, x_min: float, x_max: float, width_frac: float = 0.15, strength: float = 10.0) -> np.ndarray:
+    """
+    Build a weak complex absorbing potential (CAP) at both domain edges.
+
+    Parameters
+    ----------
+    width_frac : float
+        Fraction of the total domain length used for each absorbing ramp (0<width_frac<0.5).
+    strength : float
+        Prefactor setting the imaginary strength of the absorber (larger => more absorption).
+
+    Returns
+    -------
+    np.ndarray (complex)
+        Purely imaginary potential (negative imaginary part) that damps outgoing waves.
+    """
+    Ltot = x_max - x_min
+    ramp = width_frac * Ltot
+    left_start = x_min + ramp
+    right_start = x_max - ramp
+
+    W = np.zeros_like(x, dtype=np.float64)
+
+    # Quartic ramps (smooth)
+    left_mask = x < left_start
+    right_mask = x > right_start
+    if ramp > 0:
+        W[left_mask] = ((left_start - x[left_mask]) / ramp) ** 4
+        W[right_mask] = ((x[right_mask] - right_start) / ramp) ** 4
+
+    # Negative imaginary to absorb
+    return -1j * strength * W
+
+
 def split_step_fft(
     x_min: float,
     x_max: float,
@@ -97,75 +131,57 @@ def split_step_fft(
     k0: float,
     total_time: float,
     dt: float,
-) -> tuple[float, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
-    """Evolve a Gaussian wave packet using the split‑step Fourier method.
-
-    Parameters
-    ----------
-    x_min, x_max : float
-        Bounds of the spatial domain.
-    N : int
-        Number of spatial grid points.
-    V0 : float
-        Height of the potential barrier.
-    centre : float
-        Centre of the potential barrier.
-    width : float
-        Width of the potential barrier.
-    x0 : float
-        Initial centre of the wave packet.
-    sigma : float
-        Width of the Gaussian envelope.
-    k0 : float
-        Central wave number of the packet.
-    total_time : float
-        Total simulation time.
-    dt : float
-        Time step for the integration.
-
-    Returns
-    -------
-    tuple
-        A tuple containing the spatial grid, the potential, the time axis,
-        and a 2D array of the wavefunction values for each time step.
+    use_absorber: bool = False,
+    absorber_width_frac: float = 0.15,
+    absorber_strength: float = 10.0,
+):
+    """
+    Evolve a Gaussian wave packet using the split-step Fourier method.
+    Units: ħ = 1, m = 1 => kinetic phase uses k^2/2.
+    Returns x, V(real), times, psi_arr
     """
     # Spatial grid and momentum grid
     dx = (x_max - x_min) / N
-    # Use endpoint=False so that the grid is periodic, matching FFT assumptions.
-    x = np.linspace(x_min, x_max, N, endpoint=False)
+    x = np.linspace(x_min, x_max, N, endpoint=False)  # periodic for FFT
     k = 2.0 * np.pi * np.fft.fftfreq(N, d=dx)
 
     # Initial wavefunction
     psi = gaussian_wave_packet(x, x0=x0, sigma=sigma, k0=k0)
 
-    # Potential
-    V = build_potential(x, V0=V0, centre=centre, width=width)
+    # Real barrier potential
+    V_real = build_potential(x, V0=V0, centre=centre, width=width)
 
-    # Number of time steps
-    n_steps = int(total_time / dt)
-    times = np.linspace(0.0, total_time, n_steps + 1)
+    # Optional absorbing edges (purely imaginary)
+    if use_absorber:
+        Wcap = add_absorber(x, x_min, x_max, width_frac=absorber_width_frac, strength=absorber_strength)
+        V_eff = V_real + Wcap
+    else:
+        V_eff = V_real
 
-    # Preallocate array to hold psi at each time step
+    # Time axis
+    n_steps = int(np.floor(total_time / dt))
+    times = np.linspace(0.0, n_steps * dt, n_steps + 1)
+
+    # Allocate storage
     psi_arr = np.zeros((n_steps + 1, N), dtype=np.complex128)
     psi_arr[0] = psi
 
-    # Precompute exponential factors for efficiency
-    expV = np.exp(-1j * V * dt / 2.0)
+    # Precompute exponentials
+    # Potential half-step
+    expV = np.exp(-1j * V_eff * dt / 2.0)
+    # Kinetic full-step: phase = exp(-i * (k^2/2) * dt)
     expK = np.exp(-1j * (k ** 2) * dt / 2.0)
 
     # Time evolution loop
     for i in range(1, n_steps + 1):
-        # Half step: apply potential operator in real space
         psi = expV * psi
-        # Full step: apply kinetic operator in momentum space
         psi_k = np.fft.fft(psi)
         psi_k *= expK
         psi = np.fft.ifft(psi_k)
-        # Half step: apply potential operator again in real space
         psi = expV * psi
         psi_arr[i] = psi
 
-    return x, V, times, psi_arr
+    return x, V_real, times, psi_arr
 
 
 def run_app() -> None:
@@ -193,6 +209,9 @@ def run_app() -> None:
             "k0": 5.0,
             "total_time": 2.0,
             "dt": 0.01,
+            "use_absorber": False,
+            "absorber_width_frac": 0.15,
+            "absorber_strength": 10.0,
         }
         # Update session state with these default values only if the key is
         # not already present; this ensures that the reset does not
@@ -201,7 +220,7 @@ def run_app() -> None:
         # keys atomically.
         st.session_state.update({k: v for k, v in defaults.items()})
         # Clear simulation data and internal states
-        for state_key in ["sim_data", "prev_params", "idx", "play", "slider_placeholder", "plot_placeholder"]:
+        for state_key in ["sim_data", "prev_params", "idx", "play", "slider_placeholder", "plot_placeholder", "explanation_placeholder"]:
             if state_key in st.session_state:
                 del st.session_state[state_key]
         # Clear the reset flag so that this block does not run on the next rerun
@@ -298,6 +317,51 @@ def run_app() -> None:
         key="dt",
     )
 
+
+    # Absorbing boundaries (optional)
+    st.sidebar.subheader("Boundary (optional)")
+    use_absorber = st.sidebar.checkbox("Use absorbing edges (CAP)", value=st.session_state.get("use_absorber", False), key="use_absorber")
+    absorber_width_frac = st.sidebar.slider(
+        "CAP width (fraction of domain on each side)",
+        0.01, 0.30, st.session_state.get("absorber_width_frac", 0.15), step=0.01, key="absorber_width_frac"
+    )
+    absorber_strength = st.sidebar.slider(
+        "CAP strength", 0.0, 50.0, st.session_state.get("absorber_strength", 10.0), step=0.5, key="absorber_strength"
+    )
+
+    # --- Transmission estimate & preset ---
+    with st.sidebar.expander("Transmission estimate"):
+        # ħ=1, m=1 => E ≈ k0^2/2 for a narrow packet
+        E = 0.5 * (k0 ** 2)
+        if E < V0 and width > 0:
+            kappa = np.sqrt(2.0 * (V0 - E))
+            T_est = np.exp(-2.0 * kappa * width)
+            st.write(f"E ≈ {E:.3f}, κ ≈ {kappa:.3f},  T_est ≈ {T_est:.2e}")
+            st.caption("Heuristic for a square barrier (use to set scales).")
+        elif E >= V0:
+            st.write(f"E ≈ {E:.3f} ≥ V₀ ⇒ above-barrier scattering (T can be large).")
+        else:
+            st.write("Set width > 0 for a valid estimate.")
+
+    if st.sidebar.button("Make it mostly reflected"):
+        # One-click tiny-transmission preset
+        st.session_state.V0 = 10.0
+        st.session_state.width = 1.5
+        st.session_state.k0 = 2.0     # E = 2.0
+        st.session_state.sigma = 2.0   # narrow Δk
+        st.session_state.L = max(st.session_state.get("L", 20.0), 30.0)
+        st.session_state.x0 = -st.session_state.L + 5.0
+        st.session_state.total_time = max(st.session_state.get("total_time", 2.0), 6.0)
+        st.session_state.dt = min(st.session_state.get("dt", 0.01), 0.01)
+        st.session_state.use_absorber = True
+        st.session_state.absorber_width_frac = 0.15
+        st.session_state.absorber_strength = 10.0
+        if hasattr(st, "rerun"):
+            st.rerun()
+        elif hasattr(st, "experimental_rerun"):
+            st.experimental_rerun()
+
+
     # Form a dictionary of the current parameters to detect changes
     current_params = {
         "L": L,
@@ -332,6 +396,9 @@ def run_app() -> None:
                 k0=k0,
                 total_time=total_time,
                 dt=dt,
+                use_absorber=use_absorber,
+                absorber_width_frac=absorber_width_frac,
+                absorber_strength=absorber_strength,
             )
         st.session_state.sim_data = {
             "x": x,
@@ -488,6 +555,10 @@ def run_app() -> None:
         explanation_placeholder = st.session_state.explanation_placeholder
         explanation_placeholder.markdown(
             """
+            **Tip for tiny transmission:** Keep \(E/V_0 \lesssim 0.2\) and make \(\kappa w \gtrsim 8\),
+            where \(E \approx k_0^2/2\), \(\kappa=\sqrt{2(V_0-E)}\).
+            Increase \(\\sigma\) to narrow the momentum spread so high-\(k\) components don't hop the barrier.
+            
             **Interpreting the plots.** The wavepacket begins as a Gaussian centred at $x_0$ with width $\sigma$ and momentum proportional to the wave number $k_0$.  As it propagates in time, part of the wavefunction is reflected by the potential barrier and part is transmitted through it.  The real and imaginary parts of $\\psi(x,t)$ oscillate, while the probability density $|\\psi(x,t)|^2$ highlights where the particle is most likely to be found.  When the kinetic energy ($\\propto k_0^2$) is less than the barrier height $V_0$, quantum tunnelling allows a non‑zero probability of the packet appearing on the far side of the barrier.
 
             **Variables in the formula.**
