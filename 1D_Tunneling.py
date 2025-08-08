@@ -225,6 +225,32 @@ def run_app() -> None:
                 del st.session_state[state_key]
         # Clear the reset flag so that this block does not run on the next rerun
         st.session_state._reset_flag = False
+        
+    # >>> INSERT: apply "mostly reflected" preset BEFORE widgets are created
+    if st.session_state.get("_preset_mostly_reflected", False):
+        L_current = float(st.session_state.get("L", 20.0))
+        L_new = max(L_current, 30.0)
+        st.session_state.update({
+            "V0": 10.0,
+            "width": 1.5,
+            "k0": 2.0,        # E = k0^2/2 = 2.0
+            "sigma": 2.0,     # narrower Δk
+            "L": L_new,
+            "x0": -L_new + 5.0,
+            "total_time": max(float(st.session_state.get("total_time", 2.0)), 6.0),
+            "dt": min(float(st.session_state.get("dt", 0.01)), 0.01),
+            # If you added the absorber, keep these; otherwise you can omit:
+            "use_absorber": True,
+            "absorber_width_frac": 0.15,
+            "absorber_strength": 10.0,
+        })
+        # Clear derived state so the new preset is cleanly applied
+        for state_key in ["sim_data", "prev_params", "idx", "play",
+                        "slider_placeholder", "plot_placeholder",
+                        "explanation_placeholder"]:
+            st.session_state.pop(state_key, None)
+        st.session_state._preset_mostly_reflected = False
+    # <<< END INSERT 
 
     st.title("Quantum Wave‑Packet Tunneling in One Dimension")
     st.markdown(
@@ -344,23 +370,11 @@ def run_app() -> None:
             st.write("Set width > 0 for a valid estimate.")
 
     if st.sidebar.button("Make it mostly reflected"):
-        # One-click tiny-transmission preset
-        st.session_state.V0 = 10.0
-        st.session_state.width = 1.5
-        st.session_state.k0 = 2.0     # E = 2.0
-        st.session_state.sigma = 2.0   # narrow Δk
-        st.session_state.L = max(st.session_state.get("L", 20.0), 30.0)
-        st.session_state.x0 = -st.session_state.L + 5.0
-        st.session_state.total_time = max(st.session_state.get("total_time", 2.0), 6.0)
-        st.session_state.dt = min(st.session_state.get("dt", 0.01), 0.01)
-        st.session_state.use_absorber = True
-        st.session_state.absorber_width_frac = 0.15
-        st.session_state.absorber_strength = 10.0
+        st.session_state._preset_mostly_reflected = True
         if hasattr(st, "rerun"):
             st.rerun()
         elif hasattr(st, "experimental_rerun"):
             st.experimental_rerun()
-
 
     # Form a dictionary of the current parameters to detect changes
     current_params = {
