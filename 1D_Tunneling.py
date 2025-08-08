@@ -496,6 +496,17 @@ def run_app() -> None:
         real_part = np.real(psi)
         imag_part = np.imag(psi)
         prob_density = np.abs(psi) ** 2
+        
+        # NEW: compute scale so |ψ|² peak sits just above wave peaks
+        wave_peak = max(np.max(np.abs(real_part)), np.max(np.abs(imag_part)))
+        dens_peak = np.max(prob_density)
+        if dens_peak > 0:
+            # If you added the sidebar controls, use them; otherwise hard-code margin = 1.10
+            margin = scale_margin if 'scale_margin' in locals() else 1.10
+            do_scale = scale_density if 'scale_density' in locals() else True
+            density_scale = (margin * wave_peak / dens_peak) if (do_scale and wave_peak > 0) else 1.0
+        else:
+            density_scale = 1.0
 
         # Plot within a persistent placeholder to avoid accumulating multiple
         # charts.  Create the placeholder once in session state if it does
@@ -514,7 +525,7 @@ def run_app() -> None:
         fig.subplots_adjust(right=0.7, bottom=0.3)
         ax1.plot(sim["x"], real_part, label=r"$\Re[\psi(x,t)]$", color="tab:blue")
         ax1.plot(sim["x"], imag_part, label=r"$\Im[\psi(x,t)]$", color="tab:red")
-        ax1.plot(sim["x"], prob_density, label=r"$|\psi(x,t)|^2$", color="tab:green")
+        ax1.plot(sim["x"], density_scale * prob_density, label=rf"$|\psi(x,t)|^2$ × {density_scale:.2g}", color="tab:green")
         ax1.set_xlabel("Position x")
         ax1.set_ylabel("Wavefunction components / Probability density")
         ax1.set_title(f"Wave packet at t = {t:.3f}")
