@@ -251,7 +251,7 @@ def run_app() -> None:
 
     # Barrier parameters
     st.sidebar.subheader("Barrier")
-    V0 = st.sidebar.slider("Height V₀", 0.0, 20.0, 5.0, step=0.1, key="V0")
+    V0 = st.sidebar.slider("Height V₀", 0.0, 50.0, 5.0, step=0.1, key="V0")
     width = st.sidebar.slider("Width", 0.1, 10.0, 1.0, step=0.1, key="width")
     centre = st.sidebar.slider(
         "Centre position",
