@@ -207,7 +207,7 @@ def run_app() -> None:
         # Clear the reset flag so that this block does not run on the next rerun
         st.session_state._reset_flag = False
 
-    st.title("Quantum Wave‑Packet Tunnelling in One Dimension")
+    st.title("Quantum Wave‑Packet Tunneling in One Dimension")
     st.markdown(
         """
         This interactive tool solves the time‑dependent Schrödinger equation for a
