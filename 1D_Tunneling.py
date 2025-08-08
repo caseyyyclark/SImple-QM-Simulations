@@ -292,7 +292,7 @@ def run_app() -> None:
     dt = st.sidebar.slider(
         "Time step Δt",
         0.001,
-        0.1,
+        1.00,
         0.01,
         step=0.001,
         key="dt",
