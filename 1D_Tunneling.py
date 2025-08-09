@@ -593,8 +593,7 @@ def run_app() -> None:
             """
             **Tip for tiny transmission:**
 
-            $$
-            E/V_0 \lesssim 0.2,\qquad \kappa w \gtrsim 8,\qquad
+            $E/V_0 \lesssim 0.2$,\qquad \kappa w \gtrsim 8,\qquad
             E \approx \frac{k_0^2}{2},\quad \kappa=\sqrt{2\,(V_0-E)}.
             $$
 
