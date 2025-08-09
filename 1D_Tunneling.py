@@ -591,9 +591,9 @@ def run_app() -> None:
         explanation_placeholder = st.session_state.explanation_placeholder
         explanation_placeholder.markdown(
             """
-            **Tip for tiny transmission:** Keep \(E/V_0 \lesssim 0.2\) and make \(\kappa w \gtrsim 8\),
-            where \(E \approx k_0^2/2\), \(\kappa=\sqrt{2(V_0-E)}\).
-            Increase \(\\sigma\) to narrow the momentum spread so high-\(k\) components don't hop the barrier.
+            **Tip for tiny transmission:** Keep $\(E/V_0 \lesssim 0.2\$ and make $\(\kappa w \gtrsim 8\)$,
+            where $\(E \approx k_0^2/2\), \(\kappa=\sqrt{2(V_0-E)}\)$.
+            Increase $\(\\sigma\)$ to narrow the momentum spread so high-$\(k\)$ components don't hop the barrier.
             
             **Interpreting the plots.** The wavepacket begins as a Gaussian centred at $x_0$ with width $\sigma$ and momentum proportional to the wave number $k_0$.  As it propagates in time, part of the wavefunction is reflected by the potential barrier and part is transmitted through it.  The real and imaginary parts of $\\psi(x,t)$ oscillate, while the probability density $|\\psi(x,t)|^2$ highlights where the particle is most likely to be found.  When the kinetic energy ($\\propto k_0^2$) is less than the barrier height $V_0$, quantum tunnelling allows a non‑zero probability of the packet appearing on the far side of the barrier.
 
