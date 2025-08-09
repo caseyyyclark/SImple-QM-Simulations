@@ -593,10 +593,8 @@ def run_app() -> None:
             """
             **Tip for tiny transmission:**
 
-
-            $$
-            \frac{E}{V_0} \lesssim 0.2,\qquad \kappa w \gtrsim 8,\qquad
-            E \approx \frac{k_0^2}{2},\quad \kappa=\sqrt{2\,(V_0-E)}.
+            $$\\E/V_0 \\lesssim 0.2,\\qquad \\kappa w \\gtrsim 8,\\qquad
+            E \\approx \\frac{k_0^2}{2},\\quad \\kappa=\\sqrt{2\\,(V_0-E)}.
             $$
 
             Increase $\sigma$ to narrow the momentum spread so high-$k$ components don't hop the barrier.
