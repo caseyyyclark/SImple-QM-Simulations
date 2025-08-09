@@ -507,7 +507,7 @@ def run_app() -> None:
             density_scale = (margin * wave_peak / dens_peak) if (do_scale and wave_peak > 0) else 1.0
         else:
             density_scale = 1.0
-
+            
         # Plot within a persistent placeholder to avoid accumulating multiple
         # charts.  Create the placeholder once in session state if it does
         # not already exist.
@@ -529,6 +529,17 @@ def run_app() -> None:
         ax1.set_xlabel("Position x")
         ax1.set_ylabel("Wavefunction components / Probability density")
         ax1.set_title(f"Wave packet at t = {t:.3f}")
+        
+        # Match the y-axis to the *scaled* probability density
+        scaled_dens_peak = density_scale * dens_peak
+        wave_min = min(real_part.min(), imag_part.min(), 0.0)
+        wave_max = max(real_part.max(), imag_part.max())
+
+        headroom = 1.05  # small cushion so curves don't touch the top
+        ymin = wave_min - (headroom - 1) * max(1e-12, wave_max - wave_min)
+        ymax = headroom * max(wave_max, scaled_dens_peak)
+
+        ax1.set_ylim(ymin, ymax)
 
         # Secondary axis for the potential
         ax2 = ax1.twinx()
